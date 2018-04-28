@@ -2,21 +2,18 @@
 # On AWS With multiple network cards with the default route tables the outbound public traffic keeps going out via the default interface
 # This can be tested by running tcpdump on default interface and then sending a curl to the 2nd interface
 # The second address will try to send return traffic via the 1st interface
-# This can be fixed by forcing the traffic from second address through the 2nd network interface card
-# Creating a systemd service that will crete the rules and routes on boot and also
+# To fix this need to create a rule to direct traffic from second address through the 2nd network interface card
+# Also creating a systemd service that will create the rules and routes on boot and also
 # adding to the network.service so the script is also called when starting network
 
 
 # User inputs
 INTERFACE1="eth0"
 INTERFACE2="eth1"
-IP1=172.31.16.175/32
-IP2=172.31.17.115/32
-ROUTER1=172.31.16.1
-ROUTER2=172.31.16.1
-
-
-
+IP1=10.0.0.203/32
+IP2=10.0.5.86/32
+ROUTER1=10.0.0.1
+ROUTER2=10.0.5.1
 # End of user inputs
 
 if [[ $EUID != "0" ]]
@@ -51,16 +48,23 @@ rm -rf /etc/systemd/system/multiple-nic.service
 cat << EOF > /etc/systemd/system/multiple-nic.service
 [Unit]
 Description=Configure routing for multiple network interface cards
-After=network-online.target network.services
+After=network-online.target network.service
 
 [Service]
 ExecStart=/usr/local/src/routes.sh
 
 [Install]
-WantedBy=network-online.target network.services
+WantedBy=network-online.target network.service
 EOF
 # End of new systemd service
-
+echo "New systemd service - multiple-nic.service created"
 
 systemctl enable multiple-nic.service
+
 systemctl restart network
+if [[ $? == "0" ]]
+then
+	echo "Network restarted"
+else
+	echo "Problem restarting network"
+fi
